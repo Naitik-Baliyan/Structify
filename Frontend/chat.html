@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Structify AI Assistant - Transform your startup ideas into professional business requirements">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Structify AI Assistant | Transform Your Idea</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="chat-body">
+  <!-- Skip to main content link for accessibility -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- CHAT HEADER -->
+  <header class="chat-header" role="banner">
+    <div class="chat-header-content">
+      <a href="index.html" class="chat-back-button" aria-label="Back to Home">
+        <span aria-hidden="true">←</span>
+        <span>Back</span>
+      </a>
+      <div class="chat-title">
+        <h1>Structify AI Assistant</h1>
+        <p class="chat-subtitle">Transform your startup idea into a professional BRD</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CHAT SECTION -->
+  <main id="main" class="chat-main">
+    <section class="chat-section" aria-label="AI Chat Interface">
+      <!-- Chat container with improved structure -->
+      <div class="chat-wrapper">
+        <div class="chat-container" role="region" aria-label="Chat messages" aria-live="polite">
+          <div class="chat-messages" id="chatMessages">
+            <!-- Initial AI greeting -->
+            <div class="message-group ai-message" role="article">
+              <div class="message-avatar" aria-hidden="true">🤖</div>
+              <div class="message-bubble ai">
+                <p>👋 Hello! I'm your Structify AI Assistant.</p>
+                <p>Describe your startup idea, and I'll help structure it into a professional Business Requirement Document with:</p>
+                <ul class="message-features">
+                  <li>Clear objectives and goals</li>
+                  <li>Target user personas</li>
+                  <li>Core features and requirements</li>
+                  <li>Technical architecture</li>
+                  <li>Timeline and milestones</li>
+                </ul>
+                <p class="message-cta">Let's get started! 🚀</p>
+              </div>
+              <span class="message-time" aria-label="Message sent just now">Now</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="chat-input-wrapper" role="region" aria-label="Message input">
+          <div class="chat-input">
+            <input
+              type="text"
+              id="userInput"
+              class="chat-input-field"
+              placeholder="Describe your idea (e.g., 'An AI-powered fitness app with real-time coaching')..."
+              aria-label="Type your startup idea"
+              autocomplete="off"
+            />
+            <button
+              onclick="sendMessage()"
+              class="chat-send-btn"
+              aria-label="Send message"
+              type="submit"
+            >
+              <span aria-hidden="true">→</span>
+              <span>Send</span>
+            </button>
+          </div>
+          <p class="chat-hint">Press Enter or click Send to structure your idea</p>
+        </div>
+
+        <!-- Placeholder suggestions -->
+        <div class="chat-suggestions" id="suggestionsContainer" aria-label="Suggested prompts">
+          <p class="suggestions-title">Try asking about:</p>
+          <div class="suggestions-grid">
+            <button class="suggestion-pill" onclick="fillSuggestion('A mobile app for managing team tasks and deadlines')">Task Management App</button>
+            <button class="suggestion-pill" onclick="fillSuggestion('An e-learning platform with AI tutoring support')">E-Learning Platform</button>
+            <button class="suggestion-pill" onclick="fillSuggestion('A social marketplace for freelance designers')">Designer Marketplace</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer hint -->
+  <footer class="chat-footer" role="contentinfo">
+    <p>Structify © 2026 • Transforming ideas into specifications</p>
+  </footer>
+
+  <script src="script.js" async></script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Login or sign up for Structify to start transforming your ideas into professional specifications">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Structify - Transform Ideas Into Specifications</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-body">
+  <!-- Skip to main content -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- Decorative background elements -->
+  <div class="auth-bg-gradient auth-bg-1" aria-hidden="true"></div>
+  <div class="auth-bg-gradient auth-bg-2" aria-hidden="true"></div>
+
+  <!-- Main content -->
+  <main id="main" class="auth-main">
+    <!-- Branding section -->
+    <div class="auth-branding">
+      <a href="index.html" class="auth-logo" aria-label="Back to Structify home">
+        <span class="logo-icon" aria-hidden="true">S</span>
+        <span>Structify</span>
+      </a>
+    </div>
+
+    <!-- Auth container -->
+    <div class="auth-container" role="region" aria-label="Authentication form">
+      <div class="auth-header">
+        <h1>Welcome Back</h1>
+        <p>Login to your Structify account and continue transforming ideas into professional BRDs</p>
+      </div>
+
+      <!-- Form or tab container -->
+      <div class="auth-tabs" role="tablist" aria-label="Login options">
+        <button
+          class="auth-tab-btn active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="login-panel"
+          id="login-tab"
+        >
+          Login
+        </button>
+        <button
+          class="auth-tab-btn"
+          role="tab"
+          aria-selected="false"
+          aria-controls="signup-panel"
+          id="signup-tab"
+        >
+          Sign Up
+        </button>
+      </div>
+
+      <!-- Login panel -->
+      <form id="login-panel" role="tabpanel" aria-labelledby="login-tab">
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input
+            type="email"
+            id="login-email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            aria-required="true"
+            aria-describedby="email-help"
+          />
+          <small id="email-help">We'll never share your email</small>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input
+            type="password"
+            id="login-password"
+            name="password"
+            placeholder="Enter your password"
+            required
+            aria-required="true"
+          />
+          <a href="#" class="forgot-password">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          Login to Structify
+        </button>
+      </form>
+
+      <!-- Sign up panel (hidden by default) -->
+      <form id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" style="display: none;">
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input
+            type="text"
+            id="signup-name"
+            name="name"
+            placeholder="John Doe"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input
+            type="email"
+            id="signup-email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input
+            type="password"
+            id="signup-password"
+            name="password"
+            placeholder="Create a strong password"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <div class="form-checkbox">
+          <input
+            type="checkbox"
+            id="terms"
+            name="terms"
+            required
+            aria-required="true"
+          />
+          <label for="terms">
+            I agree to the
+            <a href="#">Terms of Service</a>
+            and
+            <a href="#">Privacy Policy</a>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="signup-btn">
+          Create Account
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="auth-divider">
+        <span>or continue with</span>
+      </div>
+
+      <!-- Social login buttons -->
+      <div class="social-buttons">
+        <button class="btn btn-social" aria-label="Login with Google">
+          <span aria-hidden="true">Google</span>
+        </button>
+        <button class="btn btn-social" aria-label="Login with GitHub">
+          <span aria-hidden="true">GitHub</span>
+        </button>
+      </div>
+
+      <!-- Footer text -->
+      <div class="auth-footer">
+        <p>First time here? <a href="index.html">Learn more about Structify</a></p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right side decoration (visible on larger screens) -->
+  <aside class="auth-features" aria-label="Structify features">
+    <div class="feature-item">
+      <h3>🤖 AI-Powered</h3>
+      <p>Advanced AI handles requirement clarification automatically</p>
+    </div>
+    <div class="feature-item">
+      <h3>📄 Professional Documents</h3>
+      <p>Generate export-ready BRDs in minutes, not weeks</p>
+    </div>
+    <div class="feature-item">
+      <h3>✨ Collaboration Ready</h3>
+      <p>Share and iterate with your team in real-time</p>
+    </div>
+  </aside>
+
+  <script src="auth.js" async></script>
+</body>
+</html>
