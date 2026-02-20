@@ -2,99 +2,241 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="description" content="Structify AI Assistant - Transform your startup ideas into professional business requirements">
+  <meta name="description" content="Structify Chat - Transform your startup ideas into professional Business Requirement Documents using AI">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Structify AI Assistant | Transform Your Idea</title>
+  <title>Chat | Structify - AI-Powered BRD Generation</title>
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="chat-body">
-  <!-- Skip to main content link for accessibility -->
-  <a href="#main" class="skip-link">Skip to main content</a>
-
-  <!-- CHAT HEADER -->
-  <header class="chat-header" role="banner">
-    <div class="chat-header-content">
-      <a href="index.html" class="chat-back-button" aria-label="Back to Home">
-        <span aria-hidden="true">←</span>
-        <span>Back</span>
-      </a>
-      <div class="chat-title">
-        <h1>Structify AI Assistant</h1>
-        <p class="chat-subtitle">Transform your startup idea into a professional BRD</p>
+  <!-- Main chat container -->
+  <div class="chat-wrapper">
+    
+    <!-- ===== SIDEBAR SECTION ===== -->
+    <aside class="sidebar" role="complementary" aria-label="Navigation sidebar">
+      <div class="sidebar-header">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" aria-expanded="true">
+          <span class="toggle-icon" aria-hidden="true">☰</span>
+        </button>
+        <a href="chat.html" class="sidebar-logo" aria-label="Structify logo">
+          <span class="logo-icon">S</span>
+          <span class="logo-text">Structify</span>
+        </a>
       </div>
-    </div>
-  </header>
 
-  <!-- MAIN CHAT SECTION -->
-  <main id="main" class="chat-main">
-    <section class="chat-section" aria-label="AI Chat Interface">
-      <!-- Chat container with improved structure -->
-      <div class="chat-wrapper">
-        <div class="chat-container" role="region" aria-label="Chat messages" aria-live="polite">
-          <div class="chat-messages" id="chatMessages">
-            <!-- Initial AI greeting -->
-            <div class="message-group ai-message" role="article">
-              <div class="message-avatar" aria-hidden="true">🤖</div>
-              <div class="message-bubble ai">
-                <p>👋 Hello! I'm your Structify AI Assistant.</p>
-                <p>Describe your startup idea, and I'll help structure it into a professional Business Requirement Document with:</p>
-                <ul class="message-features">
-                  <li>Clear objectives and goals</li>
-                  <li>Target user personas</li>
-                  <li>Core features and requirements</li>
-                  <li>Technical architecture</li>
-                  <li>Timeline and milestones</li>
-                </ul>
-                <p class="message-cta">Let's get started! 🚀</p>
-              </div>
-              <span class="message-time" aria-label="Message sent just now">Now</span>
+      <!-- New Chat Button -->
+      <button class="new-chat-btn" id="newChatBtn" aria-label="Start new chat">
+        <span class="icon" aria-hidden="true">+ Create New Chat</span>
+      </button>
+
+      <!-- History Section -->
+      <nav class="sidebar-section" aria-label="Chat history">
+        <h2 class="sidebar-section-title">History</h2>
+        <ul class="history-list" id="historyList">
+          <li><a href="#" class="history-item active" data-chat-id="current">Today's Chat</a></li>
+          <li><a href="#" class="history-item">Yesterday - AI Startup</a></li>
+          <li><a href="#" class="history-item">Feb 18 - SaaS Project</a></li>
+          <li><a href="#" class="history-item">Feb 16 - Mobile App</a></li>
+        </ul>
+      </nav>
+
+      <!-- Settings Section -->
+      <nav class="sidebar-section" aria-label="Menu options">
+        <h2 class="sidebar-section-title">Settings</h2>
+        <ul class="settings-list">
+          <li><a href="#" class="settings-item" id="settingsBtn" aria-label="Open settings">
+            <span class="icon" aria-hidden="true">⚙️</span>
+            <span>Settings</span>
+          </a></li>
+          <li><a href="#" class="settings-item" id="helpBtn" aria-label="Get help">
+            <span class="icon" aria-hidden="true">❓</span>
+            <span>Help & Support</span>
+          </a></li>
+          <li><a href="#" class="settings-item" id="feedbackBtn" aria-label="Send feedback">
+            <span class="icon" aria-hidden="true">💬</span>
+            <span>Send Feedback</span>
+          </a></li>
+        </ul>
+      </nav>
+
+      <!-- User Profile Section -->
+      <div class="sidebar-footer">
+        <button class="user-profile-btn" id="userProfileBtn" aria-label="Open user profile menu" aria-expanded="false">
+          <div class="user-avatar" aria-hidden="true">👤</div>
+          <div class="user-info" id="userNameDisplay">
+            <p class="user-name">User</p>
+            <p class="user-email">user@example.com</p>
+          </div>
+          <span class="dropdown-icon" aria-hidden="true">▼</span>
+        </button>
+        <div class="user-menu" id="userMenu" style="display: none;">
+          <a href="#" class="user-menu-item" id="profileBtn" aria-label="Edit profile">
+            <span aria-hidden="true">👤</span> Profile
+          </a>
+          <a href="#" class="user-menu-item" id="accountBtn" aria-label="Account settings">
+            <span aria-hidden="true">🔐</span> Account
+          </a>
+          <hr class="menu-divider">
+          <a href="#" class="user-menu-item logout" id="logoutBtn" aria-label="Logout">
+            <span aria-hidden="true">🚪</span> Logout
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN CHAT SECTION ===== -->
+    <div class="chat-main">
+      
+      <!-- ===== NAVBAR ===== -->
+      <header class="chat-navbar" role="banner">
+        <div class="navbar-left">
+          <button class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-label="Toggle sidebar menu">
+            <span aria-hidden="true">☰</span>
+          </button>
+          <h1 class="chat-title">Structify Assistant</h1>
+        </div>
+        
+        <div class="navbar-right">
+          <button class="icon-btn" id="shareBtn" aria-label="Share chat">
+            <span aria-hidden="true">📤</span>
+          </button>
+          <button class="icon-btn" id="downloadBtn" aria-label="Download BRD">
+            <span aria-hidden="true">⬇️</span>
+          </button>
+          <button class="icon-btn" id="infoBtn" aria-label="Chat information">
+            <span aria-hidden="true">ℹ️</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ===== CHAT PANEL ===== -->
+      <div class="chat-panel" role="main" aria-label="Chat conversation">
+        
+        <!-- Messages Container -->
+        <div class="chat-messages" id="chatMessages" role="log" aria-label="Chat messages">
+          
+          <!-- AI Welcome Message -->
+          <div class="message-group ai-message">
+            <div class="message-avatar" aria-hidden="true">🤖</div>
+            <div class="message-bubble ai">
+              <p><strong>Welcome to Structify!</strong></p>
+              <p>I'm your AI assistant. Tell me about your startup idea, and I'll help you structure it into a professional Business Requirement Document.</p>
+              <p style="margin-top: 12px; font-size: 13px; opacity: 0.8;">You can describe features, target users, business model, or any other aspect of your idea. Let's build something amazing together! 🚀</p>
             </div>
           </div>
+
+          <!-- Suggestions Container -->
+          <div class="suggestions-container" id="suggestionsContainer">
+            <p class="suggestions-label">Try asking about:</p>
+            <div class="suggestions-grid">
+              <button class="suggestion-pill" onclick="fillSuggestion('I need help building a project management SaaS tool')">
+                💼 Project Management SaaS
+              </button>
+              <button class="suggestion-pill" onclick="fillSuggestion('I want to create an AI-powered content writing tool')">
+                ✍️ AI Content Tool
+              </button>
+              <button class="suggestion-pill" onclick="fillSuggestion('Help me structure a mobile fitness app idea')">
+                🏃 Fitness App
+              </button>
+              <button class="suggestion-pill" onclick="fillSuggestion('I need requirements for an e-commerce marketplace')">
+                🛒 E-commerce Platform
+              </button>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Input area -->
-        <div class="chat-input-wrapper" role="region" aria-label="Message input">
-          <div class="chat-input">
-            <input
-              type="text"
+        <!-- ===== INPUT SECTION ===== -->
+        <div class="chat-input-section">
+          <div class="chat-input-wrapper">
+            <textarea
               id="userInput"
-              class="chat-input-field"
-              placeholder="Describe your idea (e.g., 'An AI-powered fitness app with real-time coaching')..."
-              aria-label="Type your startup idea"
-              autocomplete="off"
-            />
-            <button
-              onclick="sendMessage()"
-              class="chat-send-btn"
-              aria-label="Send message"
-              type="submit"
-            >
+              class="chat-input"
+              placeholder="Describe your startup idea or ask me anything..."
+              rows="1"
+              aria-label="Chat input"
+              aria-describedby="inputHelp"
+            ></textarea>
+            <button class="chat-send-btn" id="sendBtn" aria-label="Send message">
               <span aria-hidden="true">→</span>
-              <span>Send</span>
             </button>
           </div>
-          <p class="chat-hint">Press Enter or click Send to structure your idea</p>
-        </div>
-
-        <!-- Placeholder suggestions -->
-        <div class="chat-suggestions" id="suggestionsContainer" aria-label="Suggested prompts">
-          <p class="suggestions-title">Try asking about:</p>
-          <div class="suggestions-grid">
-            <button class="suggestion-pill" onclick="fillSuggestion('A mobile app for managing team tasks and deadlines')">Task Management App</button>
-            <button class="suggestion-pill" onclick="fillSuggestion('An e-learning platform with AI tutoring support')">E-Learning Platform</button>
-            <button class="suggestion-pill" onclick="fillSuggestion('A social marketplace for freelance designers')">Designer Marketplace</button>
-          </div>
+          <p class="input-help" id="inputHelp">Press Enter to send, Shift+Enter for new line</p>
         </div>
       </div>
-    </section>
-  </main>
 
-  <!-- Footer hint -->
-  <footer class="chat-footer" role="contentinfo">
-    <p>Structify © 2026 • Transforming ideas into specifications</p>
-  </footer>
+    </div>
 
-  <script src="script.js" async></script>
+  </div>
+
+  <!-- ===== MODALS ===== -->
+  
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal" role="dialog" aria-labelledby="settingsTitle" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="modal-close" aria-label="Close settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-group">
+          <label for="darkModeToggle">
+            <input type="checkbox" id="darkModeToggle" checked>
+            <span>Dark Mode</span>
+          </label>
+        </div>
+        <div class="settings-group">
+          <label for="notificationsToggle">
+            <input type="checkbox" id="notificationsToggle" checked>
+            <span>Enable Notifications</span>
+          </label>
+        </div>
+        <div class="settings-group">
+          <label for="autoSaveToggle">
+            <input type="checkbox" id="autoSaveToggle" checked>
+            <span>Auto-save Chat</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div class="modal" id="shareModal" role="dialog" aria-labelledby="shareTitle" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="shareTitle">Share Chat</h2>
+        <button class="modal-close" aria-label="Close share dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Share this chat with your team members:</p>
+        <div class="share-options">
+          <input type="text" id="shareLink" class="share-input" placeholder="Share link" readonly>
+          <button class="btn btn-secondary" id="copyLinkBtn">Copy Link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal for Logout -->
+  <div class="modal" id="logoutConfirmModal" role="dialog" aria-labelledby="logoutTitle" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="logoutTitle">Confirm Logout</h2>
+        <button class="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to logout?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelLogoutBtn">Cancel</button>
+        <button class="btn btn-primary" id="confirmLogoutBtn">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="auth.js" async></script>
+  <script src="chat.js" async></script>
 </body>
 </html>
