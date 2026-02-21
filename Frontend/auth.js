@@ -20,7 +20,13 @@
 /**
  * Run setup code when DOM is ready
  */
+let authInitialized = false;
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Guard against duplicate initialization
+  if (authInitialized) return;
+  authInitialized = true;
+  
   console.log('%c[Auth] Initializing...', 'color: #3b82f6; font-weight: bold;');
   initializeAuthUI();
   setupFormListeners();
@@ -79,8 +85,13 @@ function validatePassword(password) {
  * @returns {Array} - Array of user objects
  */
 function getAllUsers() {
-  const users = localStorage.getItem(USERS_STORAGE_KEY);
-  return users ? JSON.parse(users) : [];
+  try {
+    const users = localStorage.getItem(USERS_STORAGE_KEY);
+    return users ? JSON.parse(users) : [];
+  } catch (error) {
+    console.error('[Auth] Error reading users from storage:', error);
+    return [];
+  }
 }
 
 /**
@@ -408,11 +419,25 @@ function handleLogin(event) {
  * Handle signup form submission with strong defensive checks
  * @param {Event} event - Form submit event
  */
+let isHandlingSignup = false;
+
 function handleSignup(event) {
+  // Prevent reentrant signup calls
+  if (isHandlingSignup) {
+    console.warn('%c[Auth] Signup handling already in progress, ignoring', 'color: #f59e0b;');
+    event?.preventDefault();
+    event?.stopPropagation();
+    return;
+  }
+  isHandlingSignup = true;
+  
   console.log('%c[Auth] handleSignup called', 'color: #8b5cf6;');
   
   // Defensive check: ensure event exists
-  if (!event) return;
+  if (!event) {
+    isHandlingSignup = false;
+    return;
+  }
   
   event.preventDefault();
   event.stopPropagation();
@@ -427,6 +452,7 @@ function handleSignup(event) {
     if (!nameInput || !emailInput || !passwordInput || !termsCheckbox) {
       console.error('Form inputs not found');
       showError('general', 'Form validation error. Please refresh and try again.');
+      isHandlingSignup = false;
       return;
     }
     
@@ -442,6 +468,7 @@ function handleSignup(event) {
       if (!name) showError('signup-name', 'Full name is required');
       if (!email) showError('signup-email', 'Email is required');
       if (!password) showError('signup-password', 'Password is required');
+      isHandlingSignup = false;
       return;
     }
     
@@ -454,18 +481,21 @@ function handleSignup(event) {
     // Validate name
     if (name.length < 2) {
       showError('signup-name', 'Name must be at least 2 characters');
+      isHandlingSignup = false;
       return;
     }
     
     // Validate email
     if (!isValidEmail(email)) {
       showError('signup-email', 'Please enter a valid email address');
+      isHandlingSignup = false;
       return;
     }
     
     // Check if email already exists
     if (findUserByEmail(email)) {
       showError('signup-email', 'This email is already registered. Try logging in.');
+      isHandlingSignup = false;
       return;
     }
     
@@ -473,12 +503,14 @@ function handleSignup(event) {
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       showError('signup-password', passwordValidation.message);
+      isHandlingSignup = false;
       return;
     }
     
     // Check terms acceptance
     if (!terms) {
       showError('general', 'You must accept the Terms of Service and Privacy Policy');
+      isHandlingSignup = false;
       return;
     }
     
@@ -486,10 +518,12 @@ function handleSignup(event) {
     
     // All validations passed - proceed with signup
     performSignup(name, email, password);
+    isHandlingSignup = false;
     
   } catch (error) {
     console.error('handleSignup error:', error);
     showError('general', 'An error occurred. Please try again.');
+    isHandlingSignup = false;
   }
 }
 
@@ -499,7 +533,16 @@ function handleSignup(event) {
  * @param {string} email - User's email
  * @param {string} password - User's password
  */
+let isSignupInProgress = false;
+
 function performSignup(name, email, password) {
+  // Prevent multiple simultaneous signup attempts
+  if (isSignupInProgress) {
+    console.warn('%c[Auth] Signup already in progress, ignoring duplicate request', 'color: #f59e0b;');
+    return;
+  }
+  isSignupInProgress = true;
+  
   console.log('%c[Auth] performSignup started', 'color: #8b5cf6;');
   
   try {
@@ -529,6 +572,7 @@ function performSignup(name, email, password) {
           console.error('User creation failed:', result.message);
           setButtonLoading(signupBtn, false);
           showError('general', result.message || 'Failed to create account. Please try again.');
+          isSignupInProgress = false;
           return;
         }
         
@@ -540,6 +584,7 @@ function performSignup(name, email, password) {
           console.error('User verification failed');
           setButtonLoading(signupBtn, false);
           showError('general', 'User creation verification failed. Please try again.');
+          isSignupInProgress = false;
           return;
         }
         
@@ -551,6 +596,7 @@ function performSignup(name, email, password) {
           console.error('Session storage failed');
           setButtonLoading(signupBtn, false);
           showError('general', 'Failed to store session. Please try again.');
+          isSignupInProgress = false;
           return;
         }
         
@@ -578,6 +624,7 @@ function performSignup(name, email, password) {
             console.error('Session verification failed before redirect');
             setButtonLoading(signupBtn, false);
             showError('general', 'Session verification failed. Please try again.');
+            isSignupInProgress = false;
           }
         }, 800);
         
@@ -585,11 +632,13 @@ function performSignup(name, email, password) {
         console.error('performSignup timeout error:', error);
         setButtonLoading(signupBtn, false);
         showError('general', 'An error occurred during signup. Please try again.');
+        isSignupInProgress = false;
       }
     }, 1200); // Simulate 1.2s network request
   } catch (error) {
     console.error('performSignup outer error:', error);
     showError('general', 'An unexpected error occurred. Please try again.');
+    isSignupInProgress = false;
   }
 }
 
@@ -681,7 +730,16 @@ function initializeAuthUI() {
 /**
  * Setup form listeners with error handling
  */
+let formListenersSetup = false;
+
 function setupFormListeners() {
+  // Guard against duplicate listener setup
+  if (formListenersSetup) {
+    console.log('%c[Auth] Form listeners already setup, skipping', 'color: #8b5cf6;');
+    return;
+  }
+  formListenersSetup = true;
+  
   const loginPanel = document.getElementById('login-panel');
   const signupPanel = document.getElementById('signup-panel');
   
@@ -720,11 +778,20 @@ function setupFormListeners() {
   }
 }
 
+let directButtonListenersSetup = false;
+
 /**
  * Setup direct button event listeners as fallback mechanism
  * Ensures signup button works reliably even if form submission has issues
  */
 function setupDirectButtonListeners() {
+  // Guard against duplicate listener setup
+  if (directButtonListenersSetup) {
+    console.log('%c[Auth] Direct button listeners already setup, skipping', 'color: #8b5cf6;');
+    return;
+  }
+  directButtonListenersSetup = true;
+  
   const signupBtn = document.getElementById('signup-btn');
   const loginBtn = document.getElementById('login-btn');
   

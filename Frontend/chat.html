@@ -235,9 +235,60 @@
     </div>
   </div>
 
+  <!-- BRD Generation Modal -->
+  <div class="modal" id="brdModal" role="dialog" aria-labelledby="brdTitle" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="brdTitle">Generate Business Requirements Document</h2>
+        <button class="modal-close" aria-label="Close BRD dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 16px;">Select your preferred document format:</p>
+        <div class="format-selector">
+          <div class="format-option">
+            <input type="radio" id="formatPDF" name="brdFormat" value="pdf" checked>
+            <label for="formatPDF">
+              <span class="format-icon">📄</span>
+              <span class="format-name">PDF Document</span>
+              <span class="format-desc">Professional formatted document (recommended)</span>
+            </label>
+          </div>
+          <div class="format-option">
+            <input type="radio" id="formatDOCX" name="brdFormat" value="docx">
+            <label for="formatDOCX">
+              <span class="format-icon">📝</span>
+              <span class="format-name">Word Document</span>
+              <span class="format-desc">Editable in Microsoft Word</span>
+            </label>
+          </div>
+          <div class="format-option">
+            <input type="radio" id="formatTXT" name="brdFormat" value="txt">
+            <label for="formatTXT">
+              <span class="format-icon">📋</span>
+              <span class="format-name">Plain Text</span>
+              <span class="format-desc">Simple text format</span>
+            </label>
+          </div>
+          <div class="format-option">
+            <input type="radio" id="formatImage" name="brdFormat" value="image">
+            <label for="formatImage">
+              <span class="format-icon">🖼️</span>
+              <span class="format-name">Image (PNG)</span>
+              <span class="format-desc">Visual representation</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelBrdBtn">Cancel</button>
+        <button class="btn btn-primary" id="generateBrdBtn">Generate Document</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SCRIPTS ===== -->
   <script src="config.js"></script>
-  <script src="auth.js" async></script>
-  <script src="chat.js" async></script>
+  <script src="auth.js"></script>
+  <script src="chat.js"></script>
 </body>
 </html>

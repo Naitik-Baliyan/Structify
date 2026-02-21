@@ -2,7 +2,11 @@
    STRUCTIFY CHAT SYSTEM - CLEAN REBUILD VERSION
    ============================================================ */
 
-const BACKEND_URL = "http://127.0.0.1:8000";
+function getBackendUrl() {
+    const url = (typeof API_CONFIG !== 'undefined' && API_CONFIG.BACKEND_URL) ? API_CONFIG.BACKEND_URL : 'http://127.0.0.1:8001';
+    console.log('[chat.js] Backend URL:', url);
+    return url;
+}
 
 /* =============================
    AUTH CHECK
@@ -10,7 +14,14 @@ const BACKEND_URL = "http://127.0.0.1:8000";
 
 function checkUserAuthentication() {
     const user = localStorage.getItem("structify_current_user");
-    if (!user) window.location.href = "login.html";
+    // For development, allow access without login
+    if (!user) {
+        console.log('[Auth] No user found, setting dev user');
+        localStorage.setItem("structify_current_user", JSON.stringify({
+            name: "Dev User",
+            email: "dev@structify.local"
+        }));
+    }
 }
 
 /* =============================
@@ -21,7 +32,8 @@ const analysisState = {
     idea: null,
     target_market: null,
     problem_statement: null,
-    stage: "collect_idea"
+    stage: "collect_idea",
+    analysisResponse: null  // Store the full analysis response
 };
 
 /* =============================
@@ -40,10 +52,39 @@ function escapeHtml(text) {
    INITIALIZATION
 ============================= */
 
+// Single consolidated DOMContentLoaded - prevents listener duplication
+let chatInitialized = false;
+
 document.addEventListener("DOMContentLoaded", () => {
+    if (chatInitialized) return;
+    chatInitialized = true;
+    
     checkUserAuthentication();
     initializeChatInterface();
+    setupBRDModalListeners();
 });
+
+let brdModalListenersInitialized = false;
+
+function setupBRDModalListeners() {
+    if (brdModalListenersInitialized) return;
+    brdModalListenersInitialized = true;
+    
+    const brdModal = document.getElementById("brdModal");
+    const brdCloseBtn = brdModal?.querySelector(".modal-close");
+    const brdCancelBtn = document.getElementById("cancelBrdBtn");
+    const brdGenerateBtn = document.getElementById("generateBrdBtn");
+
+    if (brdCloseBtn) brdCloseBtn.addEventListener("click", closeBrdModal);
+    if (brdCancelBtn) brdCancelBtn.addEventListener("click", closeBrdModal);
+    if (brdGenerateBtn) brdGenerateBtn.addEventListener("click", generateBrd);
+
+    if (brdModal) {
+        brdModal.addEventListener("click", (e) => {
+            if (e.target === brdModal) closeBrdModal();
+        });
+    }
+}
 
 /* =============================
    CHAT INTERFACE
@@ -70,47 +111,47 @@ function initializeChatInterface() {
    MESSAGE SYSTEM
 ============================= */
 
-async function sendMessage() {
+let isSending = false;
 
+async function sendMessage() {
+    if (isSending) return;
+    
     const input = document.getElementById("userInput");
     const chatMessages = document.getElementById("chatMessages");
 
     if (!input || !chatMessages) return;
 
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || text.length === 0) return;
+    
+    isSending = true;
 
     addUserMessage(chatMessages, text);
 
     input.value = "";
     input.style.height = "auto";
 
-    if (analysisState.stage === "collect_idea") {
-        analysisState.idea = text;
-        analysisState.stage = "collect_market";
-
-        displayAIMessage(chatMessages,
-            "Great! Now tell me your <b>target market</b>."
-        );
-        return;
-    }
-
-    if (analysisState.stage === "collect_market") {
-        analysisState.target_market = text;
-        analysisState.stage = "collect_problem";
-
-        displayAIMessage(chatMessages,
-            "Perfect! What problem does your idea solve?"
-        );
-        return;
-    }
-
-    if (analysisState.stage === "collect_problem") {
-        analysisState.problem_statement = text;
-        analysisState.stage = "completed";
-
-        await analyzeWithBackend(chatMessages);
-        return;
+    try {
+        if (analysisState.stage === "collect_idea") {
+            analysisState.idea = text;
+            analysisState.stage = "collect_market";
+            displayAIMessage(chatMessages, "Great! Now tell me your <b>target market</b>.");
+            return;
+        }
+        if (analysisState.stage === "collect_market") {
+            analysisState.target_market = text;
+            analysisState.stage = "collect_problem";
+            displayAIMessage(chatMessages, "Perfect! What problem does your idea solve?");
+            return;
+        }
+        if (analysisState.stage === "collect_problem") {
+            analysisState.problem_statement = text;
+            analysisState.stage = "completed";
+            await analyzeWithBackend(chatMessages);
+            return;
+        }
+    } finally {
+        isSending = false;
     }
 }
 
@@ -177,7 +218,12 @@ async function analyzeWithBackend(chatMessages) {
 
     try {
 
-        const response = await fetch(`${BACKEND_URL}/analyze`, {
+        const backendUrl = getBackendUrl();
+        const analyzeUrl = `${backendUrl}/analyze`;
+        
+        console.log('[analyzeWithBackend] Calling:', analyzeUrl);
+
+        const response = await fetchWithRetry(analyzeUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -190,9 +236,12 @@ async function analyzeWithBackend(chatMessages) {
         });
 
         if (!response.ok)
-            throw new Error("Backend connection failed");
+            throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
 
         const data = await response.json();
+        
+        // Store the analysis response for BRD generation
+        analysisState.analysisResponse = data;
 
         document.getElementById("typingIndicator")?.remove();
 
@@ -207,17 +256,133 @@ async function analyzeWithBackend(chatMessages) {
 
             Score: <span style="color:#10b981">
             ${data.compatibility_score}/100
-            </span>
+            </span><br>
+            Risk Level: <span style="color:#f59e0b">${escapeHtml(data.risk_level)}</span><br>
+            Domain Tags: <span style="color:#8b5cf6">${data.domain_tags.join(", ")}</span><br><br>
+            
+            <button onclick="openBrdModal()" class="btn btn-primary" style="margin-top: 10px;">📄 Generate BRD</button>
         `);
 
     } catch (error) {
 
-        console.error(error);
+        console.error('[analyzeWithBackend] Error:', error);
 
         document.getElementById("typingIndicator")?.remove();
 
         displayAIMessage(chatMessages,
-            "Backend connection failed. Make sure FastAPI server is running."
+            `❌ Backend connection failed.<br><br>` +
+            `Error: ${error.message}<br><br>` +
+            `Backend URL: ${getBackendUrl()}<br>` +
+            `Make sure FastAPI server is running!`
         );
     }
 }
+
+/* =============================
+   BRD GENERATION
+============================= */
+
+function openBrdModal() {
+    const modal = document.getElementById("brdModal");
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function closeBrdModal() {
+    const modal = document.getElementById("brdModal");
+    if (modal) {
+        modal.style.display = "none";
+    }
+}
+
+async function generateBrd() {
+    if (!analysisState.analysisResponse) {
+        alert("No analysis data available. Please complete an analysis first.");
+        return;
+    }
+
+    const selectedFormat = document.querySelector('input[name="brdFormat"]:checked')?.value || "pdf";
+    const generateBtn = document.getElementById("generateBrdBtn");
+    
+    if (!generateBtn || generateBtn.disabled) return;
+    
+    const originalText = generateBtn.textContent;
+    generateBtn.textContent = "⏳ Generating...";
+    generateBtn.disabled = true;
+
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(`${getBackendUrl()}/generate_brd`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    format: selectedFormat,
+                    analysis_data: analysisState.analysisResponse
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Server error: ${response.status}`);
+            }
+            
+            lastError = null;
+            break;
+
+            const disposition = response.headers.get("Content-Disposition");
+            let filename = `BRD_${analysisState.analysisResponse.idea.replace(/\s+/g, "_").substring(0, 30)}.${selectedFormat === "image" ? "png" : selectedFormat === "pdf" ? "pdf" : selectedFormat === "docx" ? "docx" : "txt"}`;
+            
+            if (disposition) {
+                const matches = disposition.match(/filename=(.+)/);
+                if (matches) filename = matches[1].replace(/"/g, "");
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 100);
+
+            closeBrdModal();
+            alert(`✅ BRD generated successfully! File: ${filename}`);
+            generateBtn.textContent = originalText;
+            generateBtn.disabled = false;
+            return;
+            
+        } catch (error) {
+            lastError = error;
+            console.error(`BRD Generation Error (attempt ${attempt + 1}/${maxRetries}):`, error);
+            if (attempt < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    }
+    
+    if (lastError) {
+        const userMessage = lastError.message.includes('Server error') 
+            ? "Server issue. Please try again."
+            : lastError.message;
+        alert(`❌ Error generating BRD: ${userMessage}`);
+    }
+
+    generateBtn.textContent = originalText;
+    generateBtn.disabled = false;
+}
+
+/* =============================
+   NOTE: Modal listeners set by setupBRDModalListeners() from main DOMContentLoaded
+============================= */
+});
