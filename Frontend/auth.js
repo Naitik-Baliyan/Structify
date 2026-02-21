@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFormListeners();
   setupDirectButtonListeners();
   initializeStorageCheck();
+  checkBackendConnectionStatus(); // Check if backend is available
   console.log('%c[Auth] Initialization complete', 'color: #10b981; font-weight: bold;');
 });
 
@@ -813,6 +814,26 @@ function initializeDemoUser() {
 
 // Uncomment to enable demo user on first load:
 // initializeDemoUser();
+
+// ===== BACKEND CONNECTION CHECK =====
+/**
+ * Check if backend is reachable on page load
+ */
+function checkBackendConnectionStatus() {
+  checkBackendHealth()
+    .then(isHealthy => {
+      if (isHealthy) {
+        console.log('%c✅ Backend is connected and healthy', 'color: #10b981; font-weight: bold;');
+      } else {
+        console.warn('%c⚠️ Backend is not responding', 'color: #f59e0b; font-weight: bold;');
+        console.warn('💡 Make sure your FastAPI server is running at: ' + API_CONFIG.BACKEND_URL);
+      }
+    })
+    .catch(error => {
+      console.warn('%c⚠️ Could not check backend status', 'color: #f59e0b; font-weight: bold;');
+      console.warn('Error:', error.message);
+    });
+}
 
 // ===== CONSOLE LOG =====
 console.log('%c✅ Structify Auth System Loaded', 'color: #3b82f6; font-size: 14px; font-weight: bold;');
