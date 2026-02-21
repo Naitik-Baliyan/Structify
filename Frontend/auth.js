@@ -1,16 +1,18 @@
 /**
  * =============================================================
- * STRUCTIFY AUTHENTICATION SYSTEM
+ * STRUCTIFY AUTHENTICATION SYSTEM - IMPROVED VERSION
  * =============================================================
  * Handles login/signup validation, localStorage mock database,
  * and smooth user interactions with professional error handling.
  * 
  * Features:
- * - Email & password validation
- * - localStorage-based user storage
- * - Smooth animations for errors
+ * - Email & password validation with defensive checks
+ * - localStorage-based user storage with write verification
+ * - Smooth animations for errors and success
  * - Tab switching between login/signup
  * - XSS prevention with HTML escaping
+ * - Reliable event listeners with fallback mechanisms
+ * - Production-ready signup flow
  * =============================================================
  */
 
@@ -19,9 +21,12 @@
  * Run setup code when DOM is ready
  */
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('%c[Auth] Initializing...', 'color: #3b82f6; font-weight: bold;');
   initializeAuthUI();
   setupFormListeners();
+  setupDirectButtonListeners();
   initializeStorageCheck();
+  console.log('%c[Auth] Initialization complete', 'color: #10b981; font-weight: bold;');
 });
 
 // ===== STORAGE & DATABASE CONSTANTS =====
@@ -78,11 +83,27 @@ function getAllUsers() {
 }
 
 /**
- * Save users array to localStorage
+ * Save users array to localStorage with verification
  * @param {Array} users - Array of user objects to save
+ * @returns {boolean} - True if save was successful
  */
 function saveUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  try {
+    const jsonString = JSON.stringify(users);
+    localStorage.setItem(USERS_STORAGE_KEY, jsonString);
+    
+    // Verify the write was successful
+    const verification = localStorage.getItem(USERS_STORAGE_KEY);
+    if (!verification) {
+      console.error('localStorage write verification failed');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('localStorage save error:', error);
+    return false;
+  }
 }
 
 /**
@@ -98,28 +119,44 @@ function findUserByEmail(email) {
 /**
  * Create new user account in localStorage
  * @param {object} userData - { name, email, password }
- * @returns {boolean} - True if user created successfully
+ * @returns {object} - { success: boolean, message: string, user: object|null }
  */
 function createUser(userData) {
-  const users = getAllUsers();
-  
-  // Check if email already exists
-  if (findUserByEmail(userData.email)) {
-    return false;
+  try {
+    // Validate input exists
+    if (!userData || !userData.name || !userData.email || !userData.password) {
+      return { success: false, message: 'Missing user data', user: null };
+    }
+
+    const users = getAllUsers();
+    
+    // Check if email already exists
+    if (findUserByEmail(userData.email)) {
+      return { success: false, message: 'Email already registered', user: null };
+    }
+    
+    // Create new user object with timestamp
+    const newUser = {
+      id: Date.now(), // Simple ID using timestamp
+      name: userData.name.trim(),
+      email: userData.email.toLowerCase(),
+      password: userData.password, // In production, this would be hashed
+      createdAt: new Date().toISOString()
+    };
+    
+    users.push(newUser);
+    
+    // Save to localStorage and verify
+    const saveSuccess = saveUsers(users);
+    if (!saveSuccess) {
+      return { success: false, message: 'Failed to save user data', user: null };
+    }
+    
+    return { success: true, message: 'User created successfully', user: newUser };
+  } catch (error) {
+    console.error('createUser error:', error);
+    return { success: false, message: 'Error creating user account', user: null };
   }
-  
-  // Create new user object with timestamp
-  const newUser = {
-    id: Date.now(), // Simple ID using timestamp
-    name: userData.name.trim(),
-    email: userData.email.toLowerCase(),
-    password: userData.password, // In production, this would be hashed
-    createdAt: new Date().toISOString()
-  };
-  
-  users.push(newUser);
-  saveUsers(users);
-  return true;
 }
 
 /**
@@ -143,17 +180,32 @@ function verifyCredentials(email, password) {
 }
 
 /**
- * Set current logged-in user
+ * Set current logged-in user with verification
  * @param {object} user - User object to store
+ * @returns {boolean} - True if successfully stored
  */
 function setCurrentUser(user) {
-  const userToStore = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    // Don't store password in current user
-  };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+  try {
+    const userToStore = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      // Don't store password in current user
+    };
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userToStore));
+    
+    // Verify the write was successful
+    const verification = localStorage.getItem(CURRENT_USER_KEY);
+    if (!verification) {
+      console.error('Current user storage verification failed');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('setCurrentUser error:', error);
+    return false;
+  }
 }
 
 /**
@@ -255,25 +307,33 @@ function showSuccess(message) {
 }
 
 /**
- * Show loading state on button
+ * Show loading state on button with spinner animation
  * @param {HTMLElement} button - Button element
  * @param {boolean} isLoading - True to show loading, false to reset
  */
 function setButtonLoading(button, isLoading) {
-  if (isLoading) {
-    button.disabled = true;
-    button.classList.add('loading');
-    button.innerHTML = '<span class="spinner"></span> Processing...';
-  } else {
-    button.disabled = false;
-    button.classList.remove('loading');
-    // Restore original text - needs to be done differently
-    // For now, just reset based on the button's ID
-    if (button.id === 'login-btn') {
-      button.innerHTML = 'Login to Structify';
-    } else if (button.id === 'signup-btn') {
-      button.innerHTML = 'Create Account';
+  if (!button) return;
+  
+  try {
+    if (isLoading) {
+      // Store original text if not already stored
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent.trim();
+      }
+      
+      button.disabled = true;
+      button.classList.add('loading');
+      button.innerHTML = '<span class="spinner"></span> Processing...';
+    } else {
+      button.disabled = false;
+      button.classList.remove('loading');
+      
+      // Restore original text from data attribute
+      const originalText = button.dataset.originalText || 'Create Account';
+      button.textContent = originalText;
     }
+  } catch (error) {
+    console.error('setButtonLoading error:', error);
   }
 }
 
@@ -283,11 +343,15 @@ function setButtonLoading(button, isLoading) {
  * @param {Event} event - Form submit event
  */
 function handleLogin(event) {
+  console.log('%c[Auth] handleLogin called', 'color: #8b5cf6;');
+  
   event.preventDefault();
   
   // Get form values
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
+  
+  console.log('%c[Auth] Login form values:', 'color: #8b5cf6;', { email });
   
   // Clear previous errors
   removeError('login-email');
@@ -330,6 +394,8 @@ function handleLogin(event) {
     setCurrentUser(user);
     showSuccess(`Welcome back, ${user.name}!`);
     
+    console.log('%c[Auth] Login successful, redirecting...', 'color: #10b981;');
+    
     // Redirect after brief delay
     setTimeout(() => {
       window.location.href = 'chat.html';
@@ -338,90 +404,192 @@ function handleLogin(event) {
 }
 
 /**
- * Handle signup form submission
+ * Handle signup form submission with strong defensive checks
  * @param {Event} event - Form submit event
  */
 function handleSignup(event) {
+  console.log('%c[Auth] handleSignup called', 'color: #8b5cf6;');
+  
+  // Defensive check: ensure event exists
+  if (!event) return;
+  
   event.preventDefault();
+  event.stopPropagation();
   
-  // Get form values
-  const name = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const password = document.getElementById('signup-password').value;
-  const terms = document.getElementById('terms').checked;
-  
-  // Clear previous errors
-  removeError('signup-name');
-  removeError('signup-email');
-  removeError('signup-password');
-  removeError('general');
-  
-  // Validate name
-  if (!name) {
-    showError('signup-name', 'Full name is required');
-    return;
-  }
-  
-  if (name.length < 2) {
-    showError('signup-name', 'Name must be at least 2 characters');
-    return;
-  }
-  
-  // Validate email
-  if (!email) {
-    showError('signup-email', 'Email is required');
-    return;
-  }
-  
-  if (!isValidEmail(email)) {
-    showError('signup-email', 'Please enter a valid email address');
-    return;
-  }
-  
-  // Check if email already exists
-  if (findUserByEmail(email)) {
-    showError('signup-email', 'This email is already registered. Try logging in.');
-    return;
-  }
-  
-  // Validate password
-  const passwordValidation = validatePassword(password);
-  if (!passwordValidation.isValid) {
-    showError('signup-password', passwordValidation.message);
-    return;
-  }
-  
-  // Check terms acceptance
-  if (!terms) {
-    showError('general', 'You must accept the Terms of Service and Privacy Policy');
-    return;
-  }
-  
-  // Show loading state
-  const signupBtn = event.target.querySelector('button[type="submit"]');
-  setButtonLoading(signupBtn, true);
-  
-  // Simulate network delay for realism
-  setTimeout(() => {
-    // Create new user
-    const userCreated = createUser({ name, email, password });
+  try {
+    // Get form values with defensive checks
+    const nameInput = document.getElementById('signup-name');
+    const emailInput = document.getElementById('signup-email');
+    const passwordInput = document.getElementById('signup-password');
+    const termsCheckbox = document.getElementById('terms');
     
-    if (!userCreated) {
-      setButtonLoading(signupBtn, false);
-      showError('signup-email', 'This email is already registered');
+    if (!nameInput || !emailInput || !passwordInput || !termsCheckbox) {
+      console.error('Form inputs not found');
+      showError('general', 'Form validation error. Please refresh and try again.');
       return;
     }
     
-    // Success - get the created user and log them in
-    const newUser = findUserByEmail(email);
-    setCurrentUser(newUser);
-    showSuccess(`Welcome to Structify, ${name}! 🎉`);
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    const terms = termsCheckbox.checked;
     
-    // Redirect after brief delay
+    console.log('%c[Auth] Signup form values:', 'color: #8b5cf6;', { name, email, termsChecked: terms });
+    
+    // Validate empty fields first
+    if (!name || !email || !password) {
+      if (!name) showError('signup-name', 'Full name is required');
+      if (!email) showError('signup-email', 'Email is required');
+      if (!password) showError('signup-password', 'Password is required');
+      return;
+    }
+    
+    // Clear previous errors
+    removeError('signup-name');
+    removeError('signup-email');
+    removeError('signup-password');
+    removeError('general');
+    
+    // Validate name
+    if (name.length < 2) {
+      showError('signup-name', 'Name must be at least 2 characters');
+      return;
+    }
+    
+    // Validate email
+    if (!isValidEmail(email)) {
+      showError('signup-email', 'Please enter a valid email address');
+      return;
+    }
+    
+    // Check if email already exists
+    if (findUserByEmail(email)) {
+      showError('signup-email', 'This email is already registered. Try logging in.');
+      return;
+    }
+    
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      showError('signup-password', passwordValidation.message);
+      return;
+    }
+    
+    // Check terms acceptance
+    if (!terms) {
+      showError('general', 'You must accept the Terms of Service and Privacy Policy');
+      return;
+    }
+    
+    console.log('%c[Auth] All validations passed, proceeding with signup', 'color: #10b981;');
+    
+    // All validations passed - proceed with signup
+    performSignup(name, email, password);
+    
+  } catch (error) {
+    console.error('handleSignup error:', error);
+    showError('general', 'An error occurred. Please try again.');
+  }
+}
+
+/**
+ * Execute signup process with loading state and smooth redirect
+ * @param {string} name - User's full name
+ * @param {string} email - User's email
+ * @param {string} password - User's password
+ */
+function performSignup(name, email, password) {
+  console.log('%c[Auth] performSignup started', 'color: #8b5cf6;');
+  
+  try {
+    // Get the signup button
+    const signupBtn = document.getElementById('signup-btn');
+    if (!signupBtn) {
+      console.error('Signup button not found');
+      showError('general', 'Form error. Please refresh and try again.');
+      return;
+    }
+    
+    // Save original button text
+    const originalText = 'Create Account';
+    
+    // Show loading state
+    setButtonLoading(signupBtn, true);
+    
+    // Simulate network delay for realistic UX
     setTimeout(() => {
-      window.location.href = 'chat.html';
-    }, 800);
-  }, 1200); // Simulate 1.2s network request
+      try {
+        console.log('%c[Auth] Creating user...', 'color: #f59e0b;');
+        
+        // Create new user
+        const result = createUser({ name, email, password });
+        
+        if (!result.success) {
+          console.error('User creation failed:', result.message);
+          setButtonLoading(signupBtn, false);
+          showError('general', result.message || 'Failed to create account. Please try again.');
+          return;
+        }
+        
+        console.log('%c[Auth] User created successfully', 'color: #10b981;');
+        
+        // Get the created user
+        const newUser = findUserByEmail(email);
+        if (!newUser) {
+          console.error('User verification failed');
+          setButtonLoading(signupBtn, false);
+          showError('general', 'User creation verification failed. Please try again.');
+          return;
+        }
+        
+        console.log('%c[Auth] Storing current user...', 'color: #f59e0b;');
+        
+        // Attempt to store current user
+        const storageSuccess = setCurrentUser(newUser);
+        if (!storageSuccess) {
+          console.error('Session storage failed');
+          setButtonLoading(signupBtn, false);
+          showError('general', 'Failed to store session. Please try again.');
+          return;
+        }
+        
+        console.log('%c[Auth] Session stored successfully', 'color: #10b981;');
+        
+        // All checks passed - show success animation
+        showSuccess(`Welcome to Structify, ${name}! 🎉`);
+        
+        // Disable form while redirecting
+        const signupForm = document.getElementById('signup-panel');
+        if (signupForm) {
+          signupForm.style.opacity = '0.7';
+          const inputs = signupForm.querySelectorAll('input, button');
+          inputs.forEach(input => input.disabled = true);
+        }
+        
+        // Smooth redirect after animation
+        setTimeout(() => {
+          // Final verification before redirect
+          const currentUser = getCurrentUser();
+          if (currentUser && currentUser.email === email) {
+            console.log('%c[Auth] Redirecting to chat.html', 'color: #10b981; font-weight: bold;');
+            window.location.href = 'chat.html';
+          } else {
+            console.error('Session verification failed before redirect');
+            setButtonLoading(signupBtn, false);
+            showError('general', 'Session verification failed. Please try again.');
+          }
+        }, 800);
+        
+      } catch (error) {
+        console.error('performSignup timeout error:', error);
+        setButtonLoading(signupBtn, false);
+        showError('general', 'An error occurred during signup. Please try again.');
+      }
+    }, 1200); // Simulate 1.2s network request
+  } catch (error) {
+    console.error('performSignup outer error:', error);
+    showError('general', 'An unexpected error occurred. Please try again.');
+  }
 }
 
 // ===== TAB SWITCHING =====
@@ -430,6 +598,8 @@ function handleSignup(event) {
  * @param {string} tab - 'login' or 'signup'
  */
 function switchTab(tab) {
+  console.log('%c[Auth] Switching to tab:', 'color: #06b6d4;', tab);
+  
   const loginPanel = document.getElementById('login-panel');
   const signupPanel = document.getElementById('signup-panel');
   const loginTab = document.getElementById('login-tab');
@@ -444,6 +614,7 @@ function switchTab(tab) {
   removeError('general');
   
   if (tab === 'login') {
+    console.log('%c[Auth] Showing login panel', 'color: #06b6d4;');
     loginPanel.style.display = 'flex';
     signupPanel.style.display = 'none';
     loginTab.classList.add('active');
@@ -451,6 +622,7 @@ function switchTab(tab) {
     loginTab.setAttribute('aria-selected', 'true');
     signupTab.setAttribute('aria-selected', 'false');
   } else {
+    console.log('%c[Auth] Showing signup panel', 'color: #06b6d4;');
     loginPanel.style.display = 'none';
     signupPanel.style.display = 'flex';
     loginTab.classList.remove('active');
@@ -506,7 +678,7 @@ function initializeAuthUI() {
 }
 
 /**
- * Setup form listeners
+ * Setup form listeners with error handling
  */
 function setupFormListeners() {
   const loginPanel = document.getElementById('login-panel');
@@ -525,6 +697,8 @@ function setupFormListeners() {
         }
       });
     });
+  } else {
+    console.warn('Login panel not found');
   }
   
   // Setup signup form submission
@@ -540,6 +714,57 @@ function setupFormListeners() {
         }
       });
     });
+  } else {
+    console.warn('Signup panel not found');
+  }
+}
+
+/**
+ * Setup direct button event listeners as fallback mechanism
+ * Ensures signup button works reliably even if form submission has issues
+ */
+function setupDirectButtonListeners() {
+  const signupBtn = document.getElementById('signup-btn');
+  const loginBtn = document.getElementById('login-btn');
+  
+  // Direct signup button listener (fallback)
+  if (signupBtn) {
+    console.log('%c[Auth] Signup button found, attaching click listener', 'color: #10b981;');
+    signupBtn.addEventListener('click', (e) => {
+      console.log('%c[Auth] Signup button clicked!', 'color: #f59e0b; font-weight: bold;');
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const signupForm = document.getElementById('signup-panel');
+      if (signupForm) {
+        console.log('%c[Auth] Dispatching form submit event', 'color: #f59e0b;');
+        // Trigger form submission
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        signupForm.dispatchEvent(submitEvent);
+      }
+    });
+  } else {
+    console.warn('%c[Auth] Signup button NOT found!', 'color: #ef4444; font-weight: bold;');
+  }
+  
+  // Direct login button listener (fallback)
+  if (loginBtn) {
+    console.log('%c[Auth] Login button found, attaching click listener', 'color: #10b981;');
+    loginBtn.addEventListener('click', (e) => {
+      console.log('%c[Auth] Login button clicked!', 'color: #f59e0b; font-weight: bold;');
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const loginForm = document.getElementById('login-panel');
+      if (loginForm) {
+        console.log('%c[Auth] Dispatching login form submit event', 'color: #f59e0b;');
+        // Trigger form submission
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+        loginForm.dispatchEvent(submitEvent);
+      }
+    });
+  } else {
+    console.warn('%c[Auth] Login button NOT found!', 'color: #ef4444; font-weight: bold;');
   }
 }
 
