@@ -4,12 +4,14 @@ BRD (Business Requirements Document) Generator Module
 
 Generates professional Business Requirements Documents from analysis data
 in multiple formats: PDF, DOCX, TXT, PNG
+
+Includes BRDFormatter for formal Business Requirements Document template generation.
 """
 
 import json
 import io
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -573,6 +575,253 @@ class BRDExporter:
             buffer.write(brd_content.encode('utf-8'))
             buffer.seek(0)
             return buffer
+
+
+class BRDFormatter:
+    """
+    Formal Business Requirements Document (BRD) Formatter
+    
+    Transforms structured analysis data into a formal BRD following
+    strict template structure with specific sections, tables, and formatting rules.
+    """
+    
+    def __init__(self, analysis_data: Dict[str, Any]):
+        """
+        Initialize BRD formatter with analysis data
+        
+        Args:
+            analysis_data: Dict containing analysis results from AI engine
+        """
+        self.analysis_data = analysis_data
+        self.generated_at = datetime.now().strftime("%B %d, %Y")
+        logger.info("BRD Formatter initialized")
+    
+    def generate_formatted_brd(self) -> str:
+        """
+        Generate formal BRD document in markdown format
+        
+        Returns:
+            str: Formatted BRD following strict template structure
+        """
+        sections = []
+        
+        # 1. HEADER METADATA
+        sections.append(self._generate_header_metadata())
+        
+        # 2. EXECUTIVE SUMMARY
+        sections.append(self._generate_executive_summary())
+        
+        # 3. PROJECT OBJECTIVES
+        sections.append(self._generate_project_objectives())
+        
+        # 4. PROJECT SCOPE
+        sections.append(self._generate_project_scope())
+        
+        # 5. BUSINESS REQUIREMENTS (TABLE)
+        sections.append(self._generate_business_requirements())
+        
+        # 6. KEY STAKEHOLDERS (TABLE)
+        sections.append(self._generate_key_stakeholders())
+        
+        # 7. PROJECT CONSTRAINTS (TABLE)
+        sections.append(self._generate_project_constraints())
+        
+        # 8. COST-BENEFIT ANALYSIS (TABLE)
+        sections.append(self._generate_cost_benefit_analysis())
+        
+        return "\n\n".join(sections)
+    
+    def _generate_header_metadata(self) -> str:
+        """Generate header metadata section"""
+        project_name = self.analysis_data.get('idea', 'Business Project')
+        
+        metadata = f"""# BUSINESS REQUIREMENTS DOCUMENT
+
+**Project Name:** {project_name}
+
+**Project Manager:** To be assigned
+
+**Date Submitted:** {self.generated_at}
+
+**Document Status:** Draft"""
+        
+        return metadata
+    
+    def _generate_executive_summary(self) -> str:
+        """Generate executive summary (5-8 lines, business overview)"""
+        idea = self.analysis_data.get('idea', 'Unnamed Business Idea')
+        target_market = self.analysis_data.get('target_market', 'Unspecified')
+        problem = self.analysis_data.get('problem_statement', 'Not specified')
+        score = self.analysis_data.get('compatibility_score', 50)
+        
+        viability = self._get_viability_rating(score)
+        
+        summary = f"""## 1. Executive Summary
+
+This document defines the business requirements for {idea}. The project targets the {target_market} market and addresses the critical problem of {problem}. Based on business analysis, the concept demonstrates {viability} market viability with strong potential for operational value creation. The proposed solution will serve identified customer needs within the target market segment. Implementation will focus on measurable business outcomes and sustainable operational improvement. Successful execution requires disciplined market validation and strategic stakeholder alignment."""
+        
+        return summary
+    
+    def _generate_project_objectives(self) -> str:
+        """Generate project objectives (outcome-focused bullet points)"""
+        improvement_suggestions = self.analysis_data.get('improvement_suggestions', [])
+        target_market = self.analysis_data.get('target_market', 'target market')
+        
+        objectives = [
+            f"Establish market presence in {target_market}",
+            "Deliver measurable customer value proposition",
+            "Achieve operational efficiency targets",
+            "Reduce identified customer pain points by defined metrics",
+            "Build sustainable competitive position"
+        ]
+        
+        # Add improvement-based objectives
+        if improvement_suggestions:
+            if len(improvement_suggestions) > 0:
+                objectives.append(improvement_suggestions[0].replace('Improve', 'Establish').replace('Enhance', 'Develop'))
+        
+        objectives_text = "## 2. Project Objectives\n\n"
+        for obj in objectives:
+            objectives_text += f"- {obj}\n"
+        
+        return objectives_text.rstrip()
+    
+    def _generate_project_scope(self) -> str:
+        """Generate project scope with IN SCOPE and OUT OF SCOPE subsections"""
+        target_market = self.analysis_data.get('target_market', 'target market')
+        
+        in_scope = f"""## 3. Project Scope
+
+### IN SCOPE
+
+- System analysis and requirements definition for {target_market}
+- Identification and documentation of customer needs
+- Definition of functional behaviors and system responsibilities
+- Market opportunity assessment and validation
+- Stakeholder requirement collection and analysis
+- Business process mapping and workflow definition
+- Success metrics and performance indicators"""
+        
+        out_of_scope = """
+
+### OUT OF SCOPE
+
+- System implementation and development activities
+- Technical architecture and infrastructure design
+- User interface design and interaction specifications
+- Legacy system integration and data migration
+- Production deployment and operational support
+- Third-party technology selection and integration
+- Training program development and delivery"""
+        
+        return in_scope + out_of_scope
+    
+    def _generate_business_requirements(self) -> str:
+        """Generate business requirements table"""
+        requirements_md = """## 4. Business Requirements
+
+| Priority Level | Critical Level | Requirement Description |
+|---|---|---|
+| High | Must | System shall collect and validate customer requirements from market research |
+| High | Must | System shall define measurable business objectives aligned with market opportunity |
+| High | Must | System shall document functional behaviors in testable format |
+| Medium | Should | System shall maintain audit trail of requirement changes and approvals |
+| Medium | Should | System shall provide stakeholder communication and reporting capabilities |
+| Medium | Should | System shall accommodate market-driven requirement adjustments |
+| Low | Could | System shall support multi-stakeholder requirement prioritization |
+| Low | Could | System shall generate requirement traceability documentation |"""
+        
+        return requirements_md
+    
+    def _generate_key_stakeholders(self) -> str:
+        """Generate key stakeholders table"""
+        stakeholders_md = """## 5. Key Stakeholders
+
+| Name | Job Role | Duties |
+|---|---|---|
+| Project Manager | Business Leadership | Strategic oversight, decision authority, resource allocation |
+| Product Owner | Product Management | Requirements definition, prioritization, success metrics |
+| Market Analyst | Market Research | Customer needs assessment, competitive analysis, market validation |
+| Business Sponsor | Executive Management | Budget approval, strategic alignment, executive reporting |
+| Customer Representative | Customer Interface | Requirements validation, feedback collection, acceptance criteria |
+| Technical Lead | Technical Management | Feasibility assessment, constraint identification, risk management |
+| Finance Officer | Financial Management | Budget planning, cost tracking, ROI monitoring |"""
+        
+        return stakeholders_md
+    
+    def _generate_project_constraints(self) -> str:
+        """Generate project constraints table"""
+        risk_level = self.analysis_data.get('risk_level', 'medium').lower()
+        domain_tags = self.analysis_data.get('domain_tags', ['General Business'])
+        
+        constraints_md = f"""## 6. Project Constraints
+
+| Constraint | Description |
+|---|---|
+| Timeline | Requirements analysis phase: 4–6 weeks. Market validation: ongoing. |
+| Budget | To be determined based on scope and resource requirements. |
+| Market Dependency | Success dependent on {domain_tags[0] if domain_tags else 'market'} market conditions and customer demand. |
+| Stakeholder Availability | Requires consistent stakeholder engagement for requirements validation. |
+| Data Dependency | Dependent on accurate market research and customer feedback collection. |
+| Risk Tolerance | Current risk classification: {risk_level.upper()}. Requires risk mitigation strategy. |
+| Regulatory Compliance | Must comply with applicable industry and operational regulations. |"""
+        
+        return constraints_md
+    
+    def _generate_cost_benefit_analysis(self) -> str:
+        """Generate cost-benefit analysis table with ROI calculation"""
+        compatibility_score = self.analysis_data.get('compatibility_score', 50)
+        
+        analysis_md = """## 7. Cost-Benefit Analysis
+
+| Cost | Benefit |
+|---|---|
+| Requirements analysis and validation | Clear, measurable business objectives |
+| Stakeholder engagement and communication | Aligned organizational understanding |
+| Market research and customer discovery | Validated customer needs and market demand |
+| Documentation and process establishment | Auditable requirements and change management |
+| Team training and capability building | Enhanced business analysis capability |
+| Ongoing market monitoring | Sustained competitive differentiation |"""
+        
+        analysis_md += f"""
+
+### Financial Projection
+
+**Total Direct Costs:** To be calculated based on resource allocation and timeline
+
+**Identified Benefits:** 
+- Reduced requirement ambiguity and rework
+- Improved stakeholder alignment and decision velocity
+- Measurable market opportunity validation
+- Risk mitigation through structured analysis
+
+**Expected ROI:** Qualitative assessment indicates positive return through improved project execution and reduced market entry risk. Numeric ROI should be calculated upon project completion based on actual outcomes achieved.
+
+**Viability Score:** {compatibility_score}/100 - {self._get_viability_rating(compatibility_score)} indicates {self._get_investment_recommendation(compatibility_score)} investment recommendation."""
+        
+        return analysis_md
+    
+    def _get_viability_rating(self, score: int) -> str:
+        """Convert score to viability rating"""
+        if score >= 80:
+            return "Excellent"
+        elif score >= 60:
+            return "Good"
+        elif score >= 40:
+            return "Fair"
+        else:
+            return "Needs Development"
+    
+    def _get_investment_recommendation(self, score: int) -> str:
+        """Convert score to investment recommendation"""
+        if score >= 80:
+            return "Strong"
+        elif score >= 60:
+            return "Moderate"
+        elif score >= 40:
+            return "Conditional"
+        else:
+            return "Limited"
 
 
 def generate_brd(analysis_data: Dict[str, Any], format: str = "txt") -> tuple:

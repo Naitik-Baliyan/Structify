@@ -99,7 +99,7 @@ class AIEngine:
         target_market: str,
         problem_statement: str
     ) -> Dict:
-        """Call Google Gemini API"""
+        """Call Google Gemini API with error handling"""
         
         try:
             import google.generativeai as genai
@@ -124,24 +124,60 @@ class AIEngine:
             }}
             """
             
-            # Set timeout
-            response = await asyncio.wait_for(
-                asyncio.to_thread(model.generate_content, prompt),
-                timeout=self.timeout
-            )
+            try:
+                # Set timeout
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(model.generate_content, prompt),
+                    timeout=self.timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error("Gemini API request timed out")
+                raise Exception("Gemini API request timed out")
             
-            # Parse response
+            if not response or not response.text:
+                logger.error("Gemini API returned empty response")
+                raise Exception("Gemini API returned empty response")
+            
+            # Parse response with error handling
             response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
             
-            result = json.loads(response_text)
-            logger.info("Gemini API response parsed successfully")
-            return result
+            try:
+                # Clean up markdown code blocks if present
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                
+                response_text = response_text.strip()
+                
+                # Parse JSON
+                result = json.loads(response_text)
+                
+                # Validate required fields
+                required_fields = ["analysis", "compatibility_score", "improvement_suggestions", "risk_level", "domain_tags"]
+                missing_fields = [f for f in required_fields if f not in result]
+                if missing_fields:
+                    logger.error(f"Gemini response missing fields: {missing_fields}")
+                    raise Exception(f"Invalid response structure: missing {', '.join(missing_fields)}")
+                
+                # Validate score is integer
+                if not isinstance(result["compatibility_score"], int) or result["compatibility_score"] < 0 or result["compatibility_score"] > 100:
+                    result["compatibility_score"] = max(0, min(100, int(result.get("compatibility_score", 50))))
+                
+                # Ensure lists are arrays
+                if not isinstance(result["improvement_suggestions"], list):
+                    result["improvement_suggestions"] = []
+                if not isinstance(result["domain_tags"], list):
+                    result["domain_tags"] = []
+                
+                logger.info("Gemini API response parsed successfully")
+                return result
+                
+            except json.JSONDecodeError as je:
+                logger.error(f"Gemini response JSON decode error: {str(je)}")
+                raise Exception(f"Gemini API returned invalid JSON: {str(je)}")
             
         except Exception as e:
             logger.error(f"Gemini API error: {str(e)}")
@@ -153,7 +189,7 @@ class AIEngine:
         target_market: str,
         problem_statement: str
     ) -> Dict:
-        """Call OpenAI API"""
+        """Call OpenAI API with error handling"""
         
         try:
             import aiohttp
@@ -188,18 +224,56 @@ class AIEngine:
                 ]
             }
             
-            async with aiohttp.ClientSession() as session:
-                async with asyncio.timeout(self.timeout):
-                    async with session.post(
-                        "https://api.openai.com/v1/chat/completions",
-                        json=payload,
-                        headers=headers
-                    ) as resp:
-                        data = await resp.json()
-                        response_text = data["choices"][0]["message"]["content"]
-                        result = json.loads(response_text)
-                        logger.info("OpenAI API response parsed successfully")
-                        return result
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with asyncio.timeout(self.timeout):
+                        async with session.post(
+                            "https://api.openai.com/v1/chat/completions",
+                            json=payload,
+                            headers=headers
+                        ) as resp:
+                            if resp.status != 200:
+                                error_text = await resp.text()
+                                logger.error(f"OpenAI API returned {resp.status}: {error_text}")
+                                raise Exception(f"OpenAI API error {resp.status}")
+                            
+                            data = await resp.json()
+                            
+                            if "choices" not in data or not data["choices"]:
+                                logger.error("OpenAI response missing choices")
+                                raise Exception("Invalid OpenAI response format")
+                            
+                            try:
+                                response_text = data["choices"][0]["message"]["content"]
+                                result = json.loads(response_text)
+                                
+                                # Validate required fields
+                                required_fields = ["analysis", "compatibility_score", "improvement_suggestions", "risk_level", "domain_tags"]
+                                missing_fields = [f for f in required_fields if f not in result]
+                                if missing_fields:
+                                    logger.error(f"OpenAI response missing fields: {missing_fields}")
+                                    raise Exception(f"Invalid response structure")
+                                
+                                # Validate score
+                                if not isinstance(result["compatibility_score"], int):
+                                    result["compatibility_score"] = 50
+                                
+                                # Ensure lists
+                                if not isinstance(result["improvement_suggestions"], list):
+                                    result["improvement_suggestions"] = []
+                                if not isinstance(result["domain_tags"], list):
+                                    result["domain_tags"] = []
+                                
+                                logger.info("OpenAI API response parsed successfully")
+                                return result
+                                
+                            except json.JSONDecodeError as je:
+                                logger.error(f"OpenAI response JSON decode error: {str(je)}")
+                                raise Exception("OpenAI returned invalid JSON")
+                                
+            except asyncio.TimeoutError:
+                logger.error("OpenAI API request timed out")
+                raise Exception("OpenAI API request timed out")
                         
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
@@ -243,14 +317,10 @@ class AIEngine:
             idea, target_market, problem_statement
         )
         
-        analysis_text = f"""
-        Your idea '{idea}' targets the {target_market} market by solving: {problem_statement}.
-        
-        This concept shows potential for addressing market gaps. The business model aligns with current market trends
-        and has identifiable customer segments. Success will depend on execution quality and competitive differentiation.
-        
-        Consider the suggestions below to strengthen your value proposition and market positioning.
-        """.strip()
+        # Generate detailed, natural business analysis
+        analysis_text = self._generate_detailed_analysis(
+            idea, target_market, problem_statement, compatibility_score, risk_level
+        )
         
         return {
             "analysis": analysis_text,
@@ -308,6 +378,83 @@ class AIEngine:
             score += 5
         
         return min(max(score, 20), 100)  # Clamp between 20 and 100
+    
+    def _generate_detailed_analysis(
+        self,
+        idea: str,
+        target_market: str,
+        problem_statement: str,
+        compatibility_score: int,
+        risk_level: str
+    ) -> str:
+        """
+        Generate detailed, natural-sounding business analysis
+        
+        Args:
+            idea: Business idea
+            target_market: Target market
+            problem_statement: Problem statement
+            compatibility_score: Calculated compatibility score
+            risk_level: Classified risk level
+            
+        Returns:
+            Detailed narrative analysis
+        """
+        
+        combined_text = f"{idea} {target_market} {problem_statement}".lower()
+        
+        # Determine viability descriptor
+        viability_map = {
+            (80, 100): "strong market opportunity with high growth potential",
+            (60, 79): "solid market opportunity with good execution potential",
+            (40, 59): "adequate market opportunity but requires careful validation",
+            (0, 39): "emerging idea that needs significant refinement"
+        }
+        
+        viability = next(
+            desc for (min_s, max_s), desc in viability_map.items()
+            if min_s <= compatibility_score <= max_s
+        )
+        
+        # Determine market positioning
+        if any(word in combined_text for word in ["digital", "ai", "machine learning", "automation", "saas", "software"]):
+            market_context = "The digital and technology-driven nature of this concept positions it well for rapid scaling and market adoption."
+        elif any(word in combined_text for word in ["sustainable", "ecological", "green", "renewable"]):
+            market_context = "The focus on sustainability aligns with growing consumer demand and emerging regulatory trends, creating favorable market conditions."
+        elif any(word in combined_text for word in ["healthcare", "medical", "wellness"]):
+            market_context = "Healthcare and wellness markets continue to demonstrate resilience and investment appetite, with strong tailwinds for innovative solutions."
+        elif any(word in combined_text for word in ["education", "training", "skill"]):
+            market_context = "The education and professional development sectors are experiencing rapid transformation, creating opportunities for innovative platforms."
+        else:
+            market_context = f"The {target_market} market segment has identifiable customer needs and growth potential for well-executed solutions."
+        
+        # Determine execution assessment
+        if len(problem_statement) > 100 and len(target_market) > 30:
+            execution = "Your clear articulation of the problem and market indicates thoughtful concept development."
+        else:
+            execution = "Further refinement of the market definition and problem statement would strengthen your positioning."
+        
+        # Construct narrative
+        first_paragraph = f"Your business concept '{idea}' addresses the challenge of {problem_statement.lower()} within the {target_market} sector. This represents {viability}."
+        
+        second_paragraph = f"{market_context} The business model demonstrates relevant applicability to current market dynamics."
+        
+        third_paragraph = f"{execution} A compatibility score of {compatibility_score}/100 indicates {self._score_interpretation(compatibility_score)}. With {risk_level.lower()} risk factors identified, strategic planning and market validation will be key success drivers."
+        
+        analysis = f"{first_paragraph}\n\n{second_paragraph}\n\n{third_paragraph}"
+        
+        return analysis
+    
+    def _score_interpretation(self, score: int) -> str:
+        """Provide narrative interpretation of score"""
+        if score >= 80:
+            return "excellent alignment with market needs and strong execution feasibility"
+        elif score >= 60:
+            return "solid alignment with identifiable market demand and reasonable execution pathways"
+        elif score >= 40:
+            return "foundational viability that requires market testing and strategic refinement"
+        else:
+            return "early-stage concept requiring significant validation and competitive differentiation"
 
 
 class SuggestionGenerator:
@@ -368,11 +515,27 @@ class SuggestionGenerator:
         if not categories:
             categories = list(SuggestionGenerator.SUGGESTION_TEMPLATES.keys())
         
-        # Select up to 5 suggestions
+        # Ensure we get at least 3 suggestions
         import random
-        for category in categories[:4]:
+        selected_categories = categories[:4] if len(categories) >= 4 else categories + list(
+            set(SuggestionGenerator.SUGGESTION_TEMPLATES.keys()) - set(categories)
+        )[:4-len(categories)]
+        
+        # Get one suggestion from each selected category
+        for category in selected_categories:
             suggestion = random.choice(SuggestionGenerator.SUGGESTION_TEMPLATES[category])
             suggestions.append(suggestion)
+        
+        # Ensure minimum 3 suggestions
+        while len(suggestions) < 3 and len(suggestions) < len([s for cat in SuggestionGenerator.SUGGESTION_TEMPLATES.values() for s in cat]):
+            remaining_categories = [c for c in SuggestionGenerator.SUGGESTION_TEMPLATES.keys() if c not in selected_categories[:len(suggestions)]]
+            if remaining_categories:
+                category = random.choice(remaining_categories)
+                suggestion = random.choice(SuggestionGenerator.SUGGESTION_TEMPLATES[category])
+                if suggestion not in suggestions:
+                    suggestions.append(suggestion)
+            else:
+                break
         
         return suggestions[:5]
 
@@ -484,6 +647,59 @@ class DomainTagger:
             tags.add("b2b" if "enterprise" in combined_text or "business" in combined_text else "b2c")
         
         return sorted(list(tags))[:6]  # Return max 6 tags
+
+
+class InputValidator:
+    """Validate and assess clarity of business idea input"""
+    
+    @staticmethod
+    def assess_clarity(idea: str, target_market: str, problem_statement: str) -> tuple:
+        """
+        Assess input clarity and flag ambiguous inputs
+        
+        Args:
+            idea: Business idea
+            target_market: Target market
+            problem_statement: Problem statement
+            
+        Returns:
+            (is_clear: bool, clarity_score: int, feedback: str)
+        """
+        
+        clarity_issues = []
+        clarity_score = 100
+        
+        # Check idea clarity
+        if len(idea.split()) < 3:
+            clarity_issues.append("Business idea appears too brief - please provide more detail")
+            clarity_score -= 20
+        
+        if any(word in idea.lower() for word in ["unclear", "not sure", "maybe", "probably"]):
+            clarity_issues.append("Business idea contains uncertainty indicators")
+            clarity_score -= 25
+        
+        # Check target market clarity
+        if len(target_market.split()) < 2:
+            clarity_issues.append("Target market needs more specific definition")
+            clarity_score -= 20
+        
+        if any(word in target_market.lower() for word in ["everyone", "anyone", "people", "unclear", "unknown"]):
+            clarity_issues.append("Target market is too broad or undefined - please be more specific")
+            clarity_score -= 30
+        
+        # Check problem statement clarity
+        if len(problem_statement.split()) < 5:
+            clarity_issues.append("Problem statement is too brief - describe the issue in more detail")
+            clarity_score -= 20
+        
+        if any(word in problem_statement.lower() for word in ["something", "stuff", "things", "whatever", "not sure", "unclear"]):
+            clarity_issues.append("Problem statement lacks precision - be more specific")
+            clarity_score -= 25
+        
+        is_clear = clarity_score >= 60
+        feedback = " ".join(clarity_issues) if clarity_issues else ""
+        
+        return is_clear, clarity_score, feedback
 
 
 # Utility function for synchronous wrapper

@@ -9,12 +9,14 @@ from .ai_engine import (
     generate_analysis_response,
     SuggestionGenerator,
     RiskClassifier,
-    DomainTagger
+    DomainTagger,
+    InputValidator
 )
 
 from .brd_generator import (
     BRDGenerator,
     BRDExporter,
+    BRDFormatter,
     generate_brd
 )
 
@@ -24,7 +26,9 @@ __all__ = [
     "SuggestionGenerator",
     "RiskClassifier",
     "DomainTagger",
+    "InputValidator",
     "BRDGenerator",
     "BRDExporter",
+    "BRDFormatter",
     "generate_brd"
 ]

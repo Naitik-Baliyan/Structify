@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from typing import List, Optional
 from datetime import datetime
 
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from services import generate_analysis_response, generate_brd
+from services import generate_analysis_response, generate_brd, InputValidator
 
 # Load environment variables
 load_dotenv()
@@ -82,6 +83,14 @@ def analyze_idea(data: IdeaInput):
         if not data.idea.strip() or not data.target_market.strip() or not data.problem_statement.strip():
             logger.warning("Empty field validation failed")
             raise HTTPException(status_code=400, detail="All fields must contain non-empty text")
+        
+        # Assess input clarity for more nuanced feedback
+        is_clear, clarity_score, clarity_feedback = InputValidator.assess_clarity(
+            data.idea, data.target_market, data.problem_statement
+        )
+        
+        if not is_clear:
+            logger.info(f"Input clarity assessment: {clarity_score}/100 - {clarity_feedback}")
         
         # Get API key from environment
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -158,18 +167,41 @@ def generate_brd_document(request: BRDGenerationRequest):
             format=request.format.lower()
         )
         
+        # Validate document was generated (not empty)
+        document_content = document_buffer.getvalue()
+        if not document_content or len(document_content) == 0:
+            logger.error("Generated document is empty")
+            raise HTTPException(status_code=500, detail="Document generation failed - empty content")
+        
         # Create filename based on idea and format
         idea_slug = request.analysis_data.get("idea", "BRD")[:30].replace(" ", "_").replace("/", "_")
         filename = f"BRD_{idea_slug}.{file_ext}"
         
-        logger.info(f"BRD generated successfully - Size: {len(document_buffer.getvalue())} bytes, Format: {request.format}")
+        logger.info(f"BRD generated successfully - Size: {len(document_content)} bytes, Format: {request.format}")
         
-        # Return as streaming response for file download
-        document_buffer.seek(0)
-        return StreamingResponse(
-            iter([document_buffer.getvalue()]),
+        # Write to temporary file for FileResponse
+        temp_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=f".{file_ext}",
+            prefix=f"BRD_"
+        )
+        temp_file.write(document_content)
+        temp_file.close()
+        
+        logger.info(f"Document written to temp file: {temp_file.name}")
+        
+        # Return FileResponse with proper headers
+        return FileResponse(
+            path=temp_file.name,
             media_type=mime_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            filename=filename,
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "X-Content-Type-Options": "nosniff"
+            }
         )
         
     except HTTPException:
