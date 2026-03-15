@@ -105,7 +105,7 @@ class AIEngine:
             import google.generativeai as genai
             
             genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel("gemini-pro")
+            model = genai.GenerativeModel("gemini-1.5-flash")
             
             prompt = f"""
             Analyze this business idea and provide structured feedback in JSON format.
@@ -143,12 +143,10 @@ class AIEngine:
             
             try:
                 # Clean up markdown code blocks if present
-                if response_text.startswith("```json"):
-                    response_text = response_text[7:]
-                if response_text.startswith("```"):
-                    response_text = response_text[3:]
-                if response_text.endswith("```"):
-                    response_text = response_text[:-3]
+                if "```json" in response_text:
+                    response_text = response_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in response_text:
+                    response_text = response_text.split("```")[1].split("```")[0].strip()
                 
                 response_text = response_text.strip()
                 

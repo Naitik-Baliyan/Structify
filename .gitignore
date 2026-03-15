@@ -1,0 +1,39 @@
+# Environment variables
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logging
+*.log
+backend.log
+
+# Testing
+test_outputs/
+.pytest_cache/
+.coverage
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.txt
+!README*.txt
+!requirements.txt
+!LICENSE.txt
+!CHANGES*.txt

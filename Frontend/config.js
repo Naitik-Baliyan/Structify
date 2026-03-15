@@ -9,7 +9,7 @@
 
 // Backend API Configuration
 const API_CONFIG = {
-  BACKEND_URL: 'http://127.0.0.1:8000',
+  BACKEND_URL: 'http://127.0.0.1:8001',
   TIMEOUT: 10000, // 10 seconds
   RETRY_ATTEMPTS: 2,
   RETRY_DELAY: 500 // 500 milliseconds
